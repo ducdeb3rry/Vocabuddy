@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "Folder": {
+      "title": "Folder",
+      "description": "A user-created study folder grouping Chinese flashcards.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the folder (1-60 chars)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional short note or study theme (up to 200 chars)."
+        },
+        "accentTone": {
+          "type": "string",
+          "enum": ["SAGE", "BRONZE", "ROSE", "SLATE"],
+          "description": "Regency palette accent tone for folder badge."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": ["userId", "name", "accentTone", "createdAt", "updatedAt"]
+    },
+    "Flashcard": {
+      "title": "Flashcard",
+      "description": "A Chinese vocabulary/phrase/sentence flashcard with AI-generated Pinyin and definition.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "folderId": {
+          "type": "string",
+          "description": "ID of the parent Folder document."
+        },
+        "hanzi": {
+          "type": "string",
+          "description": "Chinese characters (word, phrase, idiom, or sentence)."
+        },
+        "pinyin": {
+          "type": "string",
+          "description": "Tone-marked Pinyin romanization."
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Vietnamese meaning and definition."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Từ vựng", "Cụm từ", "Câu", "Thành ngữ"],
+          "description": "Entry classification."
+        },
+        "exampleHanzi": {
+          "type": "string",
+          "description": "Optional contextual Chinese example sentence."
+        },
+        "exampleMeaning": {
+          "type": "string",
+          "description": "Optional Vietnamese translation of the example."
+        },
+        "lastResult": {
+          "type": "string",
+          "enum": ["NEW", "REMEMBERED", "FORGOT"],
+          "description": "Most recent swipe review outcome."
+        },
+        "masteryCount": {
+          "type": "integer",
+          "description": "Total right-swipe (remembered) count."
+        },
+        "lapseCount": {
+          "type": "integer",
+          "description": "Total left-swipe (forgotten) count."
+        },
+        "lastReviewedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Optional last review timestamp (FieldValue.serverTimestamp())."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "folderId",
+        "hanzi",
+        "pinyin",
+        "meaning",
+        "category",
+        "lastResult",
+        "masteryCount",
+        "lapseCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/folders/{folderId}": {
+      "schema": { "$ref": "#/entities/Folder" },
+      "description": "User-owned flashcard folders."
+    },
+    "/users/{userId}/flashcards/{cardId}": {
+      "schema": { "$ref": "#/entities/Flashcard" },
+      "description": "User-owned Chinese flashcards organized by folderId."
+    }
+  }
+}

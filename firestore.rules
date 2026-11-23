@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidFolder(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.name is string &&
+             data.name.size() >= 1 &&
+             data.name.size() <= 60 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 200)) &&
+             data.accentTone is string &&
+             data.accentTone in ['SAGE', 'BRONZE', 'ROSE', 'SLATE'];
+    }
+
+    function isValidFlashcard(data, userId) {
+      return data.userId is string &&
+             data.userId == userId &&
+             data.folderId is string &&
+             isValidId(data.folderId) &&
+             data.hanzi is string &&
+             data.hanzi.size() >= 1 &&
+             data.hanzi.size() <= 300 &&
+             data.pinyin is string &&
+             data.pinyin.size() <= 500 &&
+             data.meaning is string &&
+             data.meaning.size() >= 1 &&
+             data.meaning.size() <= 500 &&
+             data.category is string &&
+             data.category in ['Từ vựng', 'Cụm từ', 'Câu', 'Thành ngữ'] &&
+             (!('exampleHanzi' in data) || (data.exampleHanzi is string && data.exampleHanzi.size() <= 400)) &&
+             (!('exampleMeaning' in data) || (data.exampleMeaning is string && data.exampleMeaning.size() <= 500)) &&
+             data.lastResult is string &&
+             data.lastResult in ['NEW', 'REMEMBERED', 'FORGOT'] &&
+             data.masteryCount is int &&
+             data.masteryCount >= 0 &&
+             data.masteryCount <= 100000 &&
+             data.lapseCount is int &&
+             data.lapseCount >= 0 &&
+             data.lapseCount <= 100000 &&
+             (!('lastReviewedAt' in data) || (data.lastReviewedAt is timestamp && data.lastReviewedAt <= request.time));
+    }
+
+    match /users/{userId}/folders/{folderId} {
+      allow get: if isOwner(userId) && isValidId(folderId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(folderId) &&
+                       incoming().keys().hasAll(['userId', 'name', 'accentTone', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'name', 'description', 'accentTone', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidFolder(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(folderId) &&
+                       isValidFolder(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'accentTone', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(folderId);
+    }
+
+    match /users/{userId}/flashcards/{cardId} {
+      allow get: if isOwner(userId) && isValidId(cardId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(cardId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'folderId', 'hanzi', 'pinyin', 'meaning', 'category',
+                         'lastResult', 'masteryCount', 'lapseCount', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'folderId', 'hanzi', 'pinyin', 'meaning', 'category',
+                         'exampleHanzi', 'exampleMeaning', 'lastResult', 'masteryCount',
+                         'lapseCount', 'lastReviewedAt', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp &&
+                       incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       isValidFlashcard(incoming(), userId) &&
+                       exists(/databases/$(database)/documents/users/$(userId)/folders/$(incoming().folderId));
+
+      allow update: if isOwner(userId) &&
+                       isValidId(cardId) &&
+                       isValidFlashcard(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp &&
+                       incoming().updatedAt <= request.time &&
+                       (
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'folderId', 'hanzi', 'pinyin', 'meaning', 'category',
+                             'exampleHanzi', 'exampleMeaning', 'updatedAt'
+                           ]) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/folders/$(incoming().folderId))
+                         ) ||
+                         (
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'lastResult', 'masteryCount', 'lapseCount', 'lastReviewedAt', 'updatedAt'
+                           ])
+                         )
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(cardId);
+    }
+  }
+}

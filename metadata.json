@@ -1,0 +1,6 @@
+{
+  "name": "Vocabuddy",
+  "description": "Minimalist Regency-inspired Chinese flashcard app using the user's own Gemini API for automatic definitions, custom folders, Pinyin toggle, and swipe-to-review cards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
